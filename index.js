@@ -3,8 +3,9 @@ const app = express();
 const connection = require("./database/database");
 const bodyParser = require("body-parser");
 const Pergunta = require("./database/pergunta");
+const Resposta = require("./database/Resposta")
 
-
+//* database
 connection
   .authenticate()
   .then(() => {
@@ -34,10 +35,10 @@ uma outra variavel pergunta*/
 //metodo finAll: equivalente a SELECT ALL FROM "table"
     Pergunta.findAll({raw: true, order:[
       ['id','DESC']
-    ]}).then(teste =>{
-        console.log(teste)
+    ]}).then(pergunta =>{
+        console.log(pergunta)
         res.render("index",{
-            perguntas:teste
+            perguntas:pergunta
         });
     })
 });
@@ -48,29 +49,40 @@ app.get("/perguntar", (req, res) => {
 
 //essa rota ira separar as perguntas por id especifico
 
-/*usa o metodo findOne para buscar 1 campo com a condição (primeiro o campo)
-do banco e depois o que procurar, nesse caso o id informado, a pergunta será
-passada para a variavel pergunta no then e passada para o front-end por meio
-de outra variavel pergunta que sera carregada se a pergunta for encontrada
-
+/* 
+usa o metodo findOne para buscar 1 campo com a condição where{primeiro o campo
+do banco e depois o que procurar} a pergunta será passada para a variavel 
+pergunta, no then e passada para o front por meio de outra variavel pergunta
+que sera carregada se a pergunta for encontrada
 */
-
 app.get("/pergunta/:id", (req, res) => {
-  var id = req.params.id
+  var id = req.params.id //name do campo
   Pergunta.findOne({
     where:{id:id}
   }).then(pergunta=> {
     if(pergunta != undefined){
-        res.render("pergunta",{
-        pergunta:pergunta
+      /* fará busca na tabela respostas no campo perguntaId e comparar com 
+      id da pergunta da página */
+        
+      Resposta.findAll({
+          where: {perguntaId: pergunta.id},
+          order:[['id','DESC']] //comando de ordenação
+        }).then(respostas => {
+          res.render("pergunta",{
+            pergunta:pergunta,
+            //respostas é um array
+            respostas:respostas
+            })
         })
+        
     }else{
       res.redirect("/")
     }
   })
 })
 
-//Rota de envio de dados
+
+// ! Rotas de envio de dados
 app.post("/salvarpergunta", (req, res) => {
     var titulo =req.body.titulo
     var descricao =req.body.descricao
@@ -83,6 +95,21 @@ app.post("/salvarpergunta", (req, res) => {
     res.redirect("/");
   });
 });
+
+/* 
+vai enviar minha resposta para a tabela de respostas usando meu model
+Respontas este  que representa minha tabela
+*/
+app.post("/responder", (req, res) =>{
+  var corpo = req.body.corpo
+  var perguntaId = req.body.pergunta // * (name) nome do campo
+  Resposta.create({
+    corpo:corpo,
+    perguntaId:perguntaId
+  }).then(() =>{
+    res.redirect("/pergunta/"+perguntaId)
+  })
+})
 
 app.listen(3000, () => {
   console.log("Tudo OK!");
